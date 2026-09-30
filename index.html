@@ -1,0 +1,2351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>DHSGSU Live Campus Safety & Navigation System</title>
+  <meta name="description" content="Real-time live campus safety, GPS tracking, interactive Leaflet navigation, one-tap emergency SOS broadcast, and security quick-dials for Dr. Harisingh Gour Vishwavidyalaya (DHSGSU), Sagar." />
+  
+  <!-- Open Graph / Meta -->
+  <meta property="og:title" content="DHSGSU Live Campus Safety & Navigation System" />
+  <meta property="og:description" content="Live GPS safety & emergency navigation for Dr. Harisingh Gour Vishwavidyalaya, Patharia Hills, Sagar." />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="DHSGSU Safe" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- Leaflet 1.9.4 CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+  <!-- Pure Custom CSS (No external CSS frameworks) -->
+  <style>
+    /* CSS Reset & Variables */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    :root {
+      --bg-dark: #0f172a;
+      --card-dark: #1e293b;
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent-blue: #38bdf8;
+      --accent-indigo: #6366f1;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --danger-red: #ef4444;
+      --danger-glow: rgba(239, 68, 68, 0.45);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --glass-bg: rgba(15, 23, 42, 0.85);
+      --glass-card: rgba(30, 41, 59, 0.92);
+      --header-height: 64px;
+      --safe-bottom: env(safe-area-inset-bottom, 12px);
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      position: fixed;
+    }
+
+    /* Fullscreen Leaflet Map */
+    #map {
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+      background-color: #0b1120;
+    }
+
+    /* Customize Leaflet Controls for Dark Theme */
+    .leaflet-control-zoom {
+      border: 1px solid var(--card-border) !important;
+      border-radius: 12px !important;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
+    }
+    .leaflet-control-zoom a {
+      background-color: var(--glass-card) !important;
+      color: var(--text-main) !important;
+      border-bottom: 1px solid var(--card-border) !important;
+      backdrop-filter: blur(8px);
+      width: 36px !important;
+      height: 36px !important;
+      line-height: 36px !important;
+      font-size: 18px !important;
+      font-weight: bold;
+    }
+    .leaflet-control-zoom a:hover {
+      background-color: #334155 !important;
+    }
+    .leaflet-control-attribution {
+      background: rgba(15, 23, 42, 0.75) !important;
+      color: #64748b !important;
+      font-size: 9px !important;
+      backdrop-filter: blur(4px);
+      border-top-left-radius: 6px;
+      padding: 2px 6px !important;
+    }
+    .leaflet-control-attribution a {
+      color: #94a3b8 !important;
+    }
+
+    /* Custom Pulsating User Marker */
+    .user-pulse-marker {
+      position: relative;
+      width: 24px;
+      height: 24px;
+    }
+    .user-pulse-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 14px;
+      height: 14px;
+      background: #0284c7;
+      border: 2.5px solid #ffffff;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 10px #38bdf8;
+      z-index: 2;
+    }
+    .user-pulse-ring {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(56, 189, 248, 0.4);
+      transform: translate(-50%, -50%);
+      animation: ripple 1.8s ease-out infinite;
+      z-index: 1;
+    }
+    .user-heading-cone {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-bottom: 12px solid #38bdf8;
+      transform: translateX(-50%);
+    }
+
+    @keyframes ripple {
+      0% {
+        transform: translate(-50%, -50%) scale(0.4);
+        opacity: 0.9;
+      }
+      100% {
+        transform: translate(-50%, -50%) scale(1.6);
+        opacity: 0;
+      }
+    }
+
+    /* Custom Landmark Marker Pin */
+    .landmark-pin {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      border: 2px solid #ffffff;
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .landmark-pin:hover {
+      transform: rotate(-45deg) scale(1.15);
+    }
+    .landmark-pin-inner {
+      transform: rotate(45deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      font-size: 16px;
+    }
+
+    /* Leaflet Popup Styling */
+    .leaflet-popup-content-wrapper {
+      background: var(--glass-card) !important;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      color: var(--text-main) !important;
+      border-radius: 16px !important;
+      border: 1px solid var(--card-border) !important;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6) !important;
+      padding: 0 !important;
+    }
+    .leaflet-popup-content {
+      margin: 14px 16px !important;
+      line-height: 1.4;
+    }
+    .leaflet-popup-tip {
+      background: var(--glass-card) !important;
+      border: 1px solid var(--card-border) !important;
+    }
+    .popup-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .popup-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+    .popup-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .popup-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.6);
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      margin-bottom: 10px;
+    }
+    .popup-route-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
+    }
+    .popup-route-btn:active {
+      transform: scale(0.97);
+    }
+
+    /* Glassmorphism Header */
+    header.app-header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: var(--header-height);
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--card-border);
+      z-index: 1000;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+    }
+    .brand-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #0284c7, #1e3a8a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+      border: 1px solid rgba(255,255,255,0.15);
+      flex-shrink: 0;
+    }
+    .brand-icon svg {
+      width: 22px;
+      height: 22px;
+      fill: none;
+      stroke: #ffffff;
+      stroke-width: 2;
+    }
+    .brand-text h1 {
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .brand-text p {
+      font-size: 10px;
+      color: #94a3b8;
+      letter-spacing: 0.2px;
+    }
+
+    /* Live GPS Pulsing Status Indicator */
+    .live-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      color: #34d399;
+      letter-spacing: 0.4px;
+    }
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      background: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #10b981;
+      animation: liveBlink 1.4s ease-in-out infinite;
+    }
+    @keyframes liveBlink {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* Header Tools */
+    .header-tools {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .icon-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+    .icon-btn:active {
+      transform: scale(0.92);
+    }
+    .icon-btn.active-danger {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: var(--danger-red);
+      color: #fca5a5;
+      animation: dangerPulse 1s infinite alternate;
+    }
+    @keyframes dangerPulse {
+      from { box-shadow: 0 0 6px var(--danger-red); }
+      to { box-shadow: 0 0 16px var(--danger-red); }
+    }
+
+    /* Floating Map Action Buttons */
+    .floating-map-actions {
+      position: absolute;
+      right: 16px;
+      bottom: calc(230px + var(--safe-bottom));
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 800;
+    }
+    .floating-btn {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      background: var(--glass-card);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .floating-btn:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255,255,255,0.25);
+    }
+    .floating-btn:active {
+      transform: scale(0.92);
+    }
+    .floating-btn.recenter-btn {
+      color: var(--accent-blue);
+      border-color: rgba(56, 189, 248, 0.3);
+    }
+    .floating-btn.recenter-btn:active {
+      background: rgba(56, 189, 248, 0.2);
+    }
+
+    /* Map Filter Category Bar */
+    .filter-chips-container {
+      position: absolute;
+      top: calc(var(--header-height) + 12px);
+      left: 16px;
+      right: 16px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      z-index: 800;
+      scrollbar-width: none;
+    }
+    .filter-chips-container::-webkit-scrollbar {
+      display: none;
+    }
+    .filter-chip {
+      flex-shrink: 0;
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .filter-chip.active {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #38bdf8;
+      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
+    }
+
+    /* Bottom Control Dock */
+    .bottom-dock {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--glass-card);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid var(--card-border);
+      border-radius: 24px 24px 0 0;
+      z-index: 900;
+      padding: 12px 16px calc(14px + var(--safe-bottom)) 16px;
+      box-shadow: 0 -8px 36px rgba(0,0,0,0.6);
+      transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .dock-drag-handle {
+      width: 40px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      margin: 0 auto 10px auto;
+      cursor: pointer;
+    }
+
+    /* Real-Time Live Telemetry Bar */
+    .telemetry-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+    }
+    .coords-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .coords-label {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .coords-value {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent-blue);
+      letter-spacing: -0.2px;
+    }
+    .accuracy-pill {
+      font-size: 11px;
+      font-weight: 600;
+      color: #34d399;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 4px 8px;
+      border-radius: 8px;
+      text-align: right;
+    }
+    .accuracy-pill.warning {
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.15);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    /* Actions Grid */
+    .actions-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr;
+      gap: 10px;
+      align-items: stretch;
+      margin-bottom: 10px;
+    }
+
+    /* Primary Emergency SOS Button */
+    .sos-button {
+      position: relative;
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      border: 2px solid #f87171;
+      border-radius: 16px;
+      color: #ffffff;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      cursor: pointer;
+      box-shadow: 0 4px 20px var(--danger-glow);
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      overflow: hidden;
+    }
+    .sos-button::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 60%);
+      animation: rotateLight 4s linear infinite;
+    }
+    @keyframes rotateLight {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .sos-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 28px rgba(239, 68, 68, 0.7);
+    }
+    .sos-button:active {
+      transform: scale(0.95);
+    }
+    .sos-btn-content {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .sos-title {
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sos-subtitle {
+      font-size: 9px;
+      opacity: 0.9;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+
+    /* Quick Call Action Buttons */
+    .quick-call-btn {
+      background: rgba(30, 41, 59, 0.8);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      color: var(--text-main);
+      padding: 10px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .quick-call-btn:hover {
+      background: rgba(51, 65, 85, 0.9);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .quick-call-btn:active {
+      transform: scale(0.95);
+    }
+    .quick-call-btn.police-btn {
+      border-color: rgba(99, 102, 241, 0.4);
+      background: linear-gradient(180deg, rgba(99, 102, 241, 0.15), rgba(30, 41, 59, 0.8));
+    }
+    .quick-call-btn.security-btn {
+      border-color: rgba(16, 185, 129, 0.4);
+      background: linear-gradient(180deg, rgba(16, 185, 129, 0.15), rgba(30, 41, 59, 0.8));
+    }
+    .call-icon-wrap {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .police-btn .call-icon-wrap {
+      background: rgba(99, 102, 241, 0.3);
+      color: #818cf8;
+    }
+    .security-btn .call-icon-wrap {
+      background: rgba(16, 185, 129, 0.3);
+      color: #34d399;
+    }
+    .call-btn-title {
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .call-btn-num {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: ui-monospace, monospace;
+    }
+
+    /* Secondary Utilities Bar (Drawer toggles, nearest point, simulation) */
+    .dock-subbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 6px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 11px;
+    }
+    .nearest-spot-text {
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      max-width: 65%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .subbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .subbar-btn {
+      background: transparent;
+      border: none;
+      color: var(--accent-blue);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 6px;
+      border-radius: 6px;
+    }
+    .subbar-btn:hover {
+      background: rgba(56, 189, 248, 0.1);
+    }
+
+    /* Modal / Bottom Drawer Styles */
+    .drawer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 2000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .drawer-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .drawer-modal {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      max-height: 85vh;
+      background: #0f172a;
+      border-top: 1px solid var(--card-border);
+      border-radius: 28px 28px 0 0;
+      z-index: 2001;
+      padding: 20px 20px calc(20px + var(--safe-bottom)) 20px;
+      transform: translateY(100%);
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 -12px 48px rgba(0,0,0,0.8);
+      overflow: hidden;
+    }
+    .drawer-modal.active {
+      transform: translateY(0);
+    }
+    .drawer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .drawer-header h2 {
+      font-size: 17px;
+      font-weight: 800;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .drawer-close-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.08);
+      border: none;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .drawer-content {
+      overflow-y: auto;
+      flex: 1;
+      padding-right: 4px;
+    }
+
+    /* Landmark Directory List */
+    .landmark-search-input {
+      width: 100%;
+      background: #1e293b;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 10px 14px;
+      color: #ffffff;
+      font-size: 13px;
+      margin-bottom: 12px;
+      outline: none;
+    }
+    .landmark-search-input:focus {
+      border-color: var(--accent-blue);
+    }
+    .landmark-item-card {
+      background: #1e293b;
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .landmark-item-card:hover {
+      background: #334155;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .landmark-item-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .landmark-item-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .landmark-item-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 2px;
+    }
+    .landmark-item-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .landmark-item-dist {
+      text-align: right;
+    }
+    .dist-tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-blue);
+      background: rgba(56, 189, 248, 0.12);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-family: ui-monospace, monospace;
+    }
+
+    /* Emergency Alert Modal Specifics */
+    .sos-dispatch-modal {
+      text-align: center;
+    }
+    .sos-countdown-ring {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 4px solid var(--danger-red);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px auto;
+      font-size: 32px;
+      font-weight: 900;
+      color: var(--danger-red);
+      animation: pulseAlert 1s infinite alternate;
+      box-shadow: 0 0 24px var(--danger-glow);
+    }
+    @keyframes pulseAlert {
+      from { transform: scale(0.95); box-shadow: 0 0 10px var(--danger-red); }
+      to { transform: scale(1.05); box-shadow: 0 0 30px var(--danger-red); }
+    }
+    .sos-info-box {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 14px;
+      padding: 14px;
+      text-align: left;
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+    .sos-info-box p {
+      margin-bottom: 6px;
+    }
+    .sos-info-link {
+      font-family: ui-monospace, monospace;
+      color: #fca5a5;
+      font-size: 11px;
+      word-break: break-all;
+    }
+    .sos-actions-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .modal-action-btn {
+      width: 100%;
+      padding: 13px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-decoration: none;
+    }
+    .btn-sms-now {
+      background: #ef4444;
+      color: #ffffff;
+      box-shadow: 0 4px 16px rgba(239, 68, 68, 0.5);
+    }
+    .btn-whatsapp {
+      background: #10b981;
+      color: #ffffff;
+    }
+    .btn-copy {
+      background: #334155;
+      color: #ffffff;
+    }
+    .btn-cancel {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Toast Notification */
+    #toast {
+      position: fixed;
+      top: 76px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: #1e293b;
+      border: 1px solid var(--accent-blue);
+      color: #ffffff;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      z-index: 3000;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* Offline Toast */
+    #offlineBanner {
+      display: none;
+      position: fixed;
+      top: 64px;
+      left: 0;
+      right: 0;
+      background: #d97706;
+      color: #ffffff;
+      text-align: center;
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      z-index: 1001;
+    }
+
+    /* PWA Install Banner in Modal */
+    .pwa-step-card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Fullscreen Leaflet Map Canvas -->
+  <div id="map"></div>
+
+  <!-- Offline Status Banner -->
+  <div id="offlineBanner">
+    OFFLINE MODE: Running on cached campus data &amp; client-side GPS
+  </div>
+
+  <!-- Glassmorphism App Header -->
+  <header class="app-header">
+    <div class="brand-section" onclick="showCampusOverviewModal()">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="m9 12 2 2 4-4"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>
+          DHSGSU Safe
+          <span class="live-status-pill" id="liveGpsBadge">
+            <span class="live-dot"></span>
+            LIVE
+          </span>
+        </h1>
+        <p>Patharia Hills, Sagar (M.P.)</p>
+      </div>
+    </div>
+
+    <!-- Header Tools (Siren, Share Location, Landmarks Drawer, Info) -->
+    <div class="header-tools">
+      <button class="icon-btn" id="sirenBtn" title="Emergency Siren Alarm" onclick="toggleSiren()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+      </button>
+
+      <button class="icon-btn" id="shareLocationBtn" title="Share My Live Location" onclick="shareCurrentLocation()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="18" cy="5" r="3"></circle>
+          <circle cx="6" cy="12" r="3"></circle>
+          <circle cx="18" cy="19" r="3"></circle>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+        </svg>
+      </button>
+
+      <button class="icon-btn" title="Campus Buildings & Safe Points" onclick="openDrawer('landmarksDrawer')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+      </button>
+
+      <button class="icon-btn" title="Emergency Hotlines & Guidelines" onclick="openDrawer('hotlinesDrawer')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Filter Category Chips (Floating on top of Map) -->
+  <div class="filter-chips-container">
+    <button class="filter-chip active" onclick="filterLandmarks('all', this)">
+      <span>🏛️</span> All Landmarks
+    </button>
+    <button class="filter-chip" onclick="filterLandmarks('emergency', this)">
+      <span>🚨</span> Security &amp; Health
+    </button>
+    <button class="filter-chip" onclick="filterLandmarks('academic', this)">
+      <span>📚</span> Academic &amp; Library
+    </button>
+    <button class="filter-chip" onclick="filterLandmarks('hostel', this)">
+      <span>🏡</span> Hostels
+    </button>
+    <button class="filter-chip" onclick="filterLandmarks('gates', this)">
+      <span>🚪</span> Gates &amp; Exits
+    </button>
+  </div>
+
+  <!-- Floating Map Controls (Right side above bottom dock) -->
+  <div class="floating-map-actions">
+    <button class="floating-btn recenter-btn" title="Recenter to My Live Location" onclick="recenterToUser()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path>
+      </svg>
+    </button>
+
+    <button class="floating-btn" id="shareLocFloatingBtn" title="Share Live Location" onclick="shareCurrentLocation()" style="color: #38bdf8;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="18" cy="5" r="3"></circle>
+        <circle cx="6" cy="12" r="3"></circle>
+        <circle cx="18" cy="19" r="3"></circle>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+      </svg>
+    </button>
+
+    <button class="floating-btn" id="simToggleBtn" title="Toggle Simulated Campus Walk" onclick="toggleGpsSimulation()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+      </svg>
+    </button>
+
+    <button class="floating-btn" id="pwaInstallBtn" style="display: none;" title="Install DHSGSU Safe App" onclick="triggerPWAInstall()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Bottom Control Dock (Mobile-First Safety Station) -->
+  <div class="bottom-dock">
+    <div class="dock-drag-handle" onclick="openDrawer('landmarksDrawer')"></div>
+
+    <!-- Live Dynamic Coordinates Stream -->
+    <div class="telemetry-row">
+      <div class="coords-stream">
+        <span class="coords-label">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+          </svg>
+          <span id="gpsModeLabel">GPS SATELLITE FIX</span>
+        </span>
+        <span class="coords-value" id="coordsDisplay">23.83200° N, 78.77900° E</span>
+      </div>
+
+      <div class="accuracy-pill" id="accuracyBadge">
+        Accuracy: ±8m
+      </div>
+    </div>
+
+    <!-- Primary Action Station: Emergency SOS + Direct Dials -->
+    <div class="actions-grid">
+      <!-- One-Tap Emergency SOS Broadcast Button -->
+      <button class="sos-button" onclick="triggerEmergencySOS()">
+        <div class="sos-btn-content">
+          <span class="sos-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 10h2v4h-2zm0 6h2v2h-2z"/>
+            </svg>
+            SOS ALERT
+          </span>
+          <span class="sos-subtitle">Broadcast Live GPS</span>
+        </div>
+      </button>
+
+      <!-- DHSGSU Security Control Room (07582265810) -->
+      <a href="tel:07582265810" class="quick-call-btn security-btn" title="Call Campus Security">
+        <div class="call-icon-wrap">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+          </svg>
+        </div>
+        <span class="call-btn-title">Control Room</span>
+        <span class="call-btn-num">07582-265810</span>
+      </a>
+
+      <!-- Emergency Police Helpline (112) -->
+      <a href="tel:112" class="quick-call-btn police-btn" title="Call Emergency Police 112">
+        <div class="call-icon-wrap">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <span class="call-btn-title">Police</span>
+        <span class="call-btn-num">Dial 112</span>
+      </a>
+    </div>
+
+    <!-- Secondary Dock Bar: Nearest Landmark & Quick Actions -->
+    <div class="dock-subbar">
+      <div class="nearest-spot-text" id="nearestLandmarkLabel">
+        <span>📍</span> Nearest: Administrative Block (~60m)
+      </div>
+
+      <div class="subbar-actions">
+        <button class="subbar-btn" onclick="shareCurrentLocation()" title="Share Live Location" style="color: #38bdf8;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block; vertical-align:middle; margin-right:3px;">
+            <circle cx="18" cy="5" r="3"></circle>
+            <circle cx="6" cy="12" r="3"></circle>
+            <circle cx="18" cy="19" r="3"></circle>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+          </svg>
+          Share
+        </button>
+        <button class="subbar-btn" onclick="openDrawer('landmarksDrawer')">
+          <span>🏛️</span> Directory
+        </button>
+        <button class="subbar-btn" onclick="clearCurrentRoute()" id="clearRouteBtn" style="display: none; color: #ef4444;">
+          <span>✖</span> Clear Route
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast">
+    <span id="toastIcon">ℹ️</span>
+    <span id="toastMessage">Coordinates updated</span>
+  </div>
+
+  <!-- DRAWER 1: Campus Landmarks & Safe Points Directory -->
+  <div class="drawer-overlay" id="landmarksDrawerOverlay" onclick="closeAllDrawers()"></div>
+  <div class="drawer-modal" id="landmarksDrawer">
+    <div class="drawer-header">
+      <h2>
+        <span>🏛️</span> Campus Landmarks Directory
+      </h2>
+      <button class="drawer-close-btn" onclick="closeAllDrawers()">✕</button>
+    </div>
+    <input type="text" class="landmark-search-input" id="landmarkSearch" placeholder="Search buildings, hostels, health centre..." oninput="handleLandmarkSearch(this.value)">
+    <div class="drawer-content" id="landmarkListContent">
+      <!-- Populated via JavaScript with real-time distance calculations -->
+    </div>
+  </div>
+
+  <!-- DRAWER 2: Emergency Hotlines & Campus Safety Guide -->
+  <div class="drawer-overlay" id="hotlinesDrawerOverlay" onclick="closeAllDrawers()"></div>
+  <div class="drawer-modal" id="hotlinesDrawer">
+    <div class="drawer-header">
+      <h2>
+        <span>🛡️</span> DHSGSU Emergency Hotlines
+      </h2>
+      <button class="drawer-close-btn" onclick="closeAllDrawers()">✕</button>
+    </div>
+    <div class="drawer-content">
+      <div class="landmark-item-card" onclick="location.href='tel:07582265810'">
+        <div class="landmark-item-info">
+          <div class="landmark-item-icon" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">🛡️</div>
+          <div>
+            <div class="landmark-item-title">Main Campus Security Control Room</div>
+            <div class="landmark-item-sub">24/7 Rapid Response, Patharia Hills</div>
+          </div>
+        </div>
+        <div class="dist-tag" style="color: #34d399; background: rgba(16, 185, 129, 0.15);">07582-265810</div>
+      </div>
+
+      <div class="landmark-item-card" onclick="location.href='tel:112'">
+        <div class="landmark-item-info">
+          <div class="landmark-item-icon" style="background: rgba(99, 102, 241, 0.2); color: #818cf8;">🚓</div>
+          <div>
+            <div class="landmark-item-title">National Emergency Police / Dial 112</div>
+            <div class="landmark-item-sub">Madhya Pradesh State Police Dispatch</div>
+          </div>
+        </div>
+        <div class="dist-tag" style="color: #818cf8; background: rgba(99, 102, 241, 0.15);">112</div>
+      </div>
+
+      <div class="landmark-item-card" onclick="location.href='tel:108'">
+        <div class="landmark-item-info">
+          <div class="landmark-item-icon" style="background: rgba(239, 68, 68, 0.2); color: #f87171;">🚑</div>
+          <div>
+            <div class="landmark-item-title">Ambulance &amp; University Health Centre</div>
+            <div class="landmark-item-sub">Emergency Medical Care Unit</div>
+          </div>
+        </div>
+        <div class="dist-tag" style="color: #f87171; background: rgba(239, 68, 68, 0.15);">108 / 102</div>
+      </div>
+
+      <div class="landmark-item-card" onclick="location.href='tel:1090'">
+        <div class="landmark-item-info">
+          <div class="landmark-item-icon" style="background: rgba(244, 63, 94, 0.2); color: #fb7185;">👩</div>
+          <div>
+            <div class="landmark-item-title">Women Safety Helpline / ICC</div>
+            <div class="landmark-item-sub">Campus Women Protection &amp; Anti-Harassment</div>
+          </div>
+        </div>
+        <div class="dist-tag" style="color: #fb7185; background: rgba(244, 63, 94, 0.15);">1090 / 181</div>
+      </div>
+
+      <div class="landmark-item-card" onclick="location.href='tel:18001805522'">
+        <div class="landmark-item-info">
+          <div class="landmark-item-icon" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24;">🚫</div>
+          <div>
+            <div class="landmark-item-title">National Anti-Ragging Helpline</div>
+            <div class="landmark-item-sub">UGC Toll-Free 24x7 Monitoring</div>
+          </div>
+        </div>
+        <div class="dist-tag" style="color: #fbbf24; background: rgba(245, 158, 11, 0.15);">1800-180-5522</div>
+      </div>
+
+      <!-- Campus Safety Protocols -->
+      <div style="margin-top: 16px; padding: 14px; background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 14px;">
+        <h3 style="font-size: 13px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">Night Transit &amp; Safety Tips on Campus:</h3>
+        <ul style="font-size: 11px; color: var(--text-muted); line-height: 1.6; padding-left: 18px;">
+          <li>Use illuminated primary campus avenues between Central Library and Hostels after sunset.</li>
+          <li>For late-night library study, request security accompaniment from Main Gate Security.</li>
+          <li>In case of medical emergencies at hostels, Health Centre van is reachable 24x7.</li>
+          <li>Keep this PWA installed on your home screen for instant 1-tap offline access.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- DRAWER 3: Emergency SOS Dispatch Confirmation Modal -->
+  <div class="drawer-overlay" id="sosModalOverlay" onclick="cancelEmergencySOS()"></div>
+  <div class="drawer-modal sos-dispatch-modal" id="sosModal">
+    <div class="drawer-header">
+      <h2 style="color: #f87171;">
+        <span>🚨</span> EMERGENCY SOS DISPATCH
+      </h2>
+      <button class="drawer-close-btn" onclick="cancelEmergencySOS()">✕</button>
+    </div>
+    <div class="drawer-content">
+      <div class="sos-countdown-ring" id="sosCountdownNumber">3</div>
+      <p style="font-size: 14px; font-weight: 700; color: #ffffff; margin-bottom: 8px;">
+        Broadcasting Live GPS Coordinates!
+      </p>
+
+      <div class="sos-info-box">
+        <p><strong>Your Live DHSGSU Coordinates:</strong></p>
+        <p class="sos-info-link" id="sosCoordsValue">Latitude: 23.83200, Longitude: 78.77900</p>
+        <p style="margin-top: 6px;"><strong>Google Maps Tracking URL:</strong></p>
+        <p class="sos-info-link" id="sosMapsUrl">https://maps.google.com/?q=23.83200,78.77900</p>
+      </div>
+
+      <div class="sos-actions-stack">
+        <a id="sosSmsAnchor" href="#" class="modal-action-btn btn-sms-now">
+          <span>💬</span> Open SMS with Live Coordinates
+        </a>
+
+        <a id="sosWhatsAppAnchor" href="#" target="_blank" class="modal-action-btn btn-whatsapp">
+          <span>📲</span> Share on WhatsApp
+        </a>
+
+        <button class="modal-action-btn btn-copy" onclick="copySosCoordinates()">
+          <span>📋</span> Copy Link &amp; Coordinates
+        </button>
+
+        <button class="modal-action-btn btn-cancel" onclick="cancelEmergencySOS()">
+          Cancel Broadcast
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DRAWER 4: PWA Installation Guide Modal for iOS Safari -->
+  <div class="drawer-overlay" id="pwaModalOverlay" onclick="closeAllDrawers()"></div>
+  <div class="drawer-modal" id="pwaModal">
+    <div class="drawer-header">
+      <h2><span>📲</span> Install DHSGSU Safe App</h2>
+      <button class="drawer-close-btn" onclick="closeAllDrawers()">✕</button>
+    </div>
+    <div class="drawer-content">
+      <div class="pwa-step-card">
+        <strong>Install on iPhone / iPad (Safari):</strong>
+        <p style="margin-top: 6px;">1. Tap the <strong>Share button</strong> (square with arrow up) at the bottom toolbar.</p>
+        <p style="margin-top: 4px;">2. Scroll down and select <strong>"Add to Home Screen"</strong>.</p>
+        <p style="margin-top: 4px;">3. Tap <strong>"Add"</strong>. The app will launch in full screen with offline safety tools.</p>
+      </div>
+      <div class="pwa-step-card">
+        <strong>Install on Android (Chrome / Edge):</strong>
+        <p style="margin-top: 6px;">Tap the <strong>"Install App"</strong> prompt or browser menu (⋮) &gt; <strong>"Add to Home screen"</strong>.</p>
+      </div>
+      <button class="modal-action-btn btn-copy" onclick="closeAllDrawers()">Got it</button>
+    </div>
+  </div>
+
+  <!-- DRAWER 5: Share Live Location Drawer -->
+  <div class="drawer-overlay" id="shareDrawerOverlay" onclick="closeAllDrawers()"></div>
+  <div class="drawer-modal" id="shareDrawer">
+    <div class="drawer-header">
+      <h2 style="color: #38bdf8;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="18" cy="5" r="3"></circle>
+          <circle cx="6" cy="12" r="3"></circle>
+          <circle cx="18" cy="19" r="3"></circle>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+        </svg>
+        Share Live Location
+      </h2>
+      <button class="drawer-close-btn" onclick="closeAllDrawers()">✕</button>
+    </div>
+    <div class="drawer-content">
+      <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 14px; padding: 14px; margin-bottom: 16px;">
+        <div style="font-size: 13px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">📍 DHSGSU Live Coordinates</div>
+        <div id="shareCoordsPreview" style="font-family: ui-monospace, monospace; font-size: 12px; color: #7dd3fc; margin-bottom: 8px;">23.83200° N, 78.77900° E (±8m)</div>
+        <div id="shareNearestPreview" style="font-size: 11px; color: var(--text-muted);">Patharia Hills, Dr. Harisingh Gour Vishwavidyalaya, Sagar</div>
+      </div>
+
+      <div class="sos-actions-stack">
+        <a id="shareWhatsAppBtn" href="#" target="_blank" class="modal-action-btn btn-whatsapp">
+          <span>📲</span> Share on WhatsApp
+        </a>
+
+        <a id="shareSmsBtn" href="#" class="modal-action-btn" style="background: #0284c7; color: #ffffff;">
+          <span>💬</span> Share via SMS
+        </a>
+
+        <a id="shareTelegramBtn" href="#" target="_blank" class="modal-action-btn" style="background: #229ED9; color: #ffffff;">
+          <span>✈️</span> Share on Telegram
+        </a>
+
+        <button class="modal-action-btn btn-copy" onclick="copyShareLocation()">
+          <span>📋</span> Copy Location Link &amp; Details
+        </button>
+
+        <button class="modal-action-btn btn-cancel" onclick="closeAllDrawers()">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet 1.9.4 JavaScript -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Complete Application Logic (Modern Vanilla ES6+ JavaScript) -->
+  <script>
+    /**
+     * DHSGSU Live Campus Safety & Navigation System
+     * Dr. Harisingh Gour Vishwavidyalaya, Sagar (M.P.)
+     */
+
+    // 1. Campus Geography & Landmarks Configuration
+    const CAMPUS_CONFIG = {
+      name: "Dr. Harisingh Gour Vishwavidyalaya (DHSGSU)",
+      location: "Patharia Hills, Sagar, Madhya Pradesh, India",
+      center: [23.8320, 78.7790], // Latitude 23.8320, Longitude 78.7790
+      zoom: 16,
+      maxBounds: [
+        [23.8150, 78.7600], // Southwest
+        [23.8500, 78.8000]  // Northeast
+      ]
+    };
+
+    // Pre-loaded Interactive Markers as per specification
+    const CAMPUS_LANDMARKS = [
+      {
+        id: "central_library",
+        name: "Central Library (J.N. Library)",
+        coords: [23.8312, 78.7798],
+        category: "academic",
+        categoryName: "Academic / Library",
+        icon: "📚",
+        color: "#38bdf8",
+        description: "Pandit Jawaharlal Nehru Central Library. Multi-storey academic repository with reading halls & e-resource labs."
+      },
+      {
+        id: "admin_block",
+        name: "Administrative Block / VC Office",
+        coords: [23.8328, 78.7785],
+        category: "academic",
+        categoryName: "Administration",
+        icon: "🏛️",
+        color: "#f59e0b",
+        description: "Vice-Chancellor's Secretariat, Registrar Office, Examination Branch, and Central University Administrative Headquarters."
+      },
+      {
+        id: "main_security_gate",
+        name: "Main Security Gate",
+        coords: [23.8265, 78.7750],
+        category: "gates",
+        categoryName: "Security Gate",
+        icon: "🛡️",
+        color: "#10b981",
+        description: "Primary Campus Entrance & Security Post. 24x7 Armed Security Guard Station & Vehicle Verification Barrier."
+      },
+      {
+        id: "health_centre",
+        name: "University Health Centre",
+        coords: [23.8305, 78.7812],
+        category: "emergency",
+        categoryName: "Emergency & Health",
+        icon: "🏥",
+        color: "#ef4444",
+        description: "24/7 Outpatient & Emergency Medical Unit, On-Duty Medical Officers, Ambulance Bay & First-Aid Trauma Unit."
+      },
+      {
+        id: "commerce_arts",
+        name: "Commerce & Arts Departments",
+        coords: [23.8335, 78.7802],
+        category: "academic",
+        categoryName: "Academic Block",
+        icon: "🎓",
+        color: "#8b5cf6",
+        description: "Faculty of Commerce, Humanities, Social Sciences, and General Lecture Complex."
+      },
+      {
+        id: "tagore_boys_hostel",
+        name: "Tagore Boys Hostel",
+        coords: [23.8350, 78.7820],
+        category: "hostel",
+        categoryName: "Boys Residence",
+        icon: "🏡",
+        color: "#6366f1",
+        description: "Senior University Boys Residence Hall. Equipped with warden office and safe perimeter security."
+      },
+      {
+        id: "girls_hostel",
+        name: "Rani Laxmibai Girls Hostel",
+        coords: [23.8342, 78.7765],
+        category: "hostel",
+        categoryName: "Girls Residence",
+        icon: "🌺",
+        color: "#ec4899",
+        description: "Secured Women's Residential Complex with high-security boundary, biometric access, and 24x7 female security staff."
+      },
+      {
+        id: "science_complex",
+        name: "Science Complex & Labs",
+        coords: [23.8319, 78.7770],
+        category: "academic",
+        categoryName: "Academic Labs",
+        icon: "🔬",
+        color: "#06b6d4",
+        description: "Physics, Chemistry, Geology, Botany, Zoology departments and Advanced Research Instrumentation Centre."
+      },
+      {
+        id: "police_post",
+        name: "Patharia Hills Police Outpost",
+        coords: [23.8280, 78.7758],
+        category: "emergency",
+        categoryName: "Police Post",
+        icon: "🚓",
+        color: "#3b82f6",
+        description: "Madhya Pradesh Police Static Outpost for university hill jurisdiction. Dial 112 immediate link."
+      },
+      {
+        id: "security_gate_2",
+        name: "Security Gate 2 (Baheria Side)",
+        coords: [23.8375, 78.7840],
+        category: "gates",
+        categoryName: "Security Gate",
+        icon: "🚪",
+        color: "#10b981",
+        description: "Eastern Campus Perimeter Security Post & Emergency Exit Barrier."
+      }
+    ];
+
+    // State Variables
+    let map = null;
+    let userMarker = null;
+    let userAccuracyCircle = null;
+    let landmarkMarkers = [];
+    let currentRouteLine = null;
+    let activeFilter = 'all';
+
+    // GPS Telemetry State (defaults to Patharia Hills campus)
+    let userLocation = {
+      lat: CAMPUS_CONFIG.center[0],
+      lng: CAMPUS_CONFIG.center[1],
+      accuracy: 8,
+      heading: null,
+      speed: null,
+      timestamp: Date.now(),
+      isLive: false,
+      isSimulated: false
+    };
+
+    let watchPositionId = null;
+    let simulationInterval = null;
+    let sosCountdownTimer = null;
+    let isSirenActive = false;
+    let audioContext = null;
+    let sirenOscillator = null;
+    let sirenGain = null;
+    let deferredPwaPrompt = null;
+
+    // 2. Initialize Leaflet Map
+    function initMap() {
+      // Create map instance centered on DHSGSU campus
+      map = L.map('map', {
+        center: CAMPUS_CONFIG.center,
+        zoom: CAMPUS_CONFIG.zoom,
+        minZoom: 14,
+        maxZoom: 19,
+        zoomControl: false,
+        attributionControl: true
+      });
+
+      // Add Zoom control at top right
+      L.control.zoom({ position: 'topright' }).addTo(map);
+
+      // OpenStreetMap Tiles (high reliability & cached by Service Worker)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> | DHSGSU Sagar'
+      }).addTo(map);
+
+      // Load Interactive Landmark Pins
+      renderLandmarkMarkers();
+
+      // Setup User Location Pulsating Marker
+      setupUserMarker();
+
+      // Render Landmark Directory in Drawer
+      renderLandmarkDirectory();
+
+      // Start Native GPS Tracking
+      startLiveGpsTracking();
+    }
+
+    // 3. Custom SVG Marker Generator
+    function createLandmarkIcon(color, iconSymbol) {
+      return L.divIcon({
+        className: 'custom-leaflet-pin',
+        html: `
+          <div class="landmark-pin" style="background: ${color};">
+            <div class="landmark-pin-inner">${iconSymbol}</div>
+          </div>
+        `,
+        iconSize: [38, 38],
+        iconAnchor: [19, 38],
+        popupAnchor: [0, -38]
+      });
+    }
+
+    // Render All Pre-Set Campus Landmarks
+    function renderLandmarkMarkers() {
+      // Clear existing markers
+      landmarkMarkers.forEach(item => map.removeLayer(item.marker));
+      landmarkMarkers = [];
+
+      CAMPUS_LANDMARKS.forEach(landmark => {
+        const icon = createLandmarkIcon(landmark.color, landmark.icon);
+        const marker = L.marker(landmark.coords, { icon: icon });
+
+        // Build Rich Popup
+        const popupContent = `
+          <div>
+            <span class="popup-badge" style="background: ${landmark.color}22; color: ${landmark.color}; border: 1px solid ${landmark.color}44;">
+              ${landmark.categoryName}
+            </span>
+            <div class="popup-title">${landmark.name}</div>
+            <div class="popup-desc">${landmark.description}</div>
+            <div class="popup-meta">
+              <span>GPS: ${landmark.coords[0].toFixed(4)}°, ${landmark.coords[1].toFixed(4)}°</span>
+              <span id="popupDist_${landmark.id}">~${calculateDistance(userLocation.lat, userLocation.lng, landmark.coords[0], landmark.coords[1])}m</span>
+            </div>
+            <button class="popup-route-btn" onclick="drawRouteTo([${landmark.coords[0]}, ${landmark.coords[1]}], '${landmark.name.replace(/'/g, "\\'")}')">
+              <span>🚶</span> Route from My Location
+            </button>
+          </div>
+        `;
+
+        marker.bindPopup(popupContent, { maxWidth: 280 });
+        marker.addTo(map);
+
+        landmarkMarkers.push({
+          id: landmark.id,
+          category: landmark.category,
+          marker: marker,
+          data: landmark
+        });
+      });
+    }
+
+    // 4. Setup Pulsating User Location Marker
+    function setupUserMarker() {
+      const userDivIcon = L.divIcon({
+        className: 'user-marker-container',
+        html: `
+          <div class="user-pulse-marker">
+            <div class="user-pulse-ring"></div>
+            <div class="user-pulse-center"></div>
+          </div>
+        `,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+
+      userMarker = L.marker([userLocation.lat, userLocation.lng], {
+        icon: userDivIcon,
+        zIndexOffset: 1000
+      }).addTo(map);
+
+      // Accuracy circle overlay
+      userAccuracyCircle = L.circle([userLocation.lat, userLocation.lng], {
+        radius: userLocation.accuracy,
+        color: '#0284c7',
+        fillColor: '#38bdf8',
+        fillOpacity: 0.15,
+        weight: 1.5,
+        dashArray: '4, 4'
+      }).addTo(map);
+    }
+
+    // 5. Real-Time Live GPS Tracker Engine (Native HTML5 Geolocation API)
+    function startLiveGpsTracking() {
+      if (!navigator.geolocation) {
+        showToast("⚠️ Geolocation API not supported in this browser. Enabling simulated campus GPS.", "⚠️");
+        startSimulation();
+        return;
+      }
+
+      const options = {
+        enableHighAccuracy: true,
+        timeout: 12000,
+        maximumAge: 0
+      };
+
+      // Initial position query
+      navigator.geolocation.getCurrentPosition(
+        onLocationSuccess,
+        onLocationError,
+        options
+      );
+
+      // Continuous Watch Position
+      watchPositionId = navigator.geolocation.watchPosition(
+        onLocationSuccess,
+        onLocationError,
+        options
+      );
+    }
+
+    function onLocationSuccess(position) {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const accuracy = Math.round(position.coords.accuracy || 10);
+
+      userLocation.lat = lat;
+      userLocation.lng = lng;
+      userLocation.accuracy = accuracy;
+      userLocation.heading = position.coords.heading;
+      userLocation.speed = position.coords.speed;
+      userLocation.timestamp = Date.now();
+      userLocation.isLive = true;
+      userLocation.isSimulated = false;
+
+      updateUserMarkerPosition();
+      updateTelemetryUI();
+      updateNearestLandmark();
+    }
+
+    function onLocationError(error) {
+      console.warn("GPS Warning:", error.message);
+      // If outside or blocked or testing in sandbox, enable simulated walk around Patharia Hills
+      if (!userLocation.isLive && !userLocation.isSimulated) {
+        setSimulatedDefaultCampus();
+      }
+    }
+
+    // Update Marker Coordinates & Accuracy Overlay on Leaflet
+    function updateUserMarkerPosition() {
+      const newLatLng = L.latLng(userLocation.lat, userLocation.lng);
+
+      if (userMarker) {
+        userMarker.setLatLng(newLatLng);
+      }
+      if (userAccuracyCircle) {
+        userAccuracyCircle.setLatLng(newLatLng);
+        userAccuracyCircle.setRadius(userLocation.accuracy);
+      }
+
+      // Update existing route line if one is being drawn
+      if (currentRouteLine && currentRouteLine.targetCoords) {
+        currentRouteLine.setLatLngs([newLatLng, currentRouteLine.targetCoords]);
+      }
+    }
+
+    // Update Telemetry Bar in the Bottom Control Dock
+    function updateTelemetryUI() {
+      const coordsDisplay = document.getElementById('coordsDisplay');
+      const accuracyBadge = document.getElementById('accuracyBadge');
+      const liveGpsBadge = document.getElementById('liveGpsBadge');
+      const gpsModeLabel = document.getElementById('gpsModeLabel');
+
+      if (coordsDisplay) {
+        coordsDisplay.textContent = `${userLocation.lat.toFixed(5)}° N, ${userLocation.lng.toFixed(5)}° E`;
+      }
+
+      if (accuracyBadge) {
+        if (userLocation.accuracy <= 15) {
+          accuracyBadge.className = 'accuracy-pill';
+          accuracyBadge.textContent = `Accuracy: ±${userLocation.accuracy}m (High)`;
+        } else {
+          accuracyBadge.className = 'accuracy-pill warning';
+          accuracyBadge.textContent = `Accuracy: ±${userLocation.accuracy}m`;
+        }
+      }
+
+      if (liveGpsBadge && gpsModeLabel) {
+        if (userLocation.isSimulated) {
+          liveGpsBadge.innerHTML = '<span class="live-dot" style="background:#f59e0b; box-shadow:0 0 8px #f59e0b;"></span> SIMULATED';
+          gpsModeLabel.textContent = 'CAMPUS SIMULATOR GPS';
+        } else {
+          liveGpsBadge.innerHTML = '<span class="live-dot"></span> LIVE';
+          gpsModeLabel.textContent = 'GPS SATELLITE FIX';
+        }
+      }
+    }
+
+    // Recenter Floating Action Button: Snaps map smoothly to current user coordinates
+    function recenterToUser() {
+      if (!map) return;
+      map.flyTo([userLocation.lat, userLocation.lng], 17, {
+        animate: true,
+        duration: 1.2
+      });
+      showToast("📍 Map view centered on your current position", "🎯");
+    }
+
+    // Toggle Simulated Walk Mode (for testing outside Sagar or indoors)
+    function toggleGpsSimulation() {
+      if (userLocation.isSimulated) {
+        // Stop simulation
+        clearInterval(simulationInterval);
+        simulationInterval = null;
+        userLocation.isSimulated = false;
+        document.getElementById('simToggleBtn').style.color = '#ffffff';
+        showToast("Resuming real device GPS...", "📡");
+        startLiveGpsTracking();
+      } else {
+        // Start simulation
+        if (watchPositionId) {
+          navigator.geolocation.clearWatch(watchPositionId);
+          watchPositionId = null;
+        }
+        startSimulation();
+      }
+    }
+
+    function setSimulatedDefaultCampus() {
+      userLocation.lat = 23.8320;
+      userLocation.lng = 78.7790;
+      userLocation.accuracy = 6;
+      userLocation.isLive = false;
+      userLocation.isSimulated = true;
+      updateUserMarkerPosition();
+      updateTelemetryUI();
+      updateNearestLandmark();
+    }
+
+    function startSimulation() {
+      userLocation.isSimulated = true;
+      document.getElementById('simToggleBtn').style.color = '#f59e0b';
+      showToast("Campus Simulation Mode: Walking along Patharia Hills", "🚶‍♂️");
+
+      // Path loop: Library -> Admin Block -> Health Centre -> Hostels -> Back
+      const simulationWaypoints = [
+        [23.8312, 78.7798], // Library
+        [23.8320, 78.7792],
+        [23.8328, 78.7785], // Admin Block
+        [23.8335, 78.7802], // Commerce
+        [23.8350, 78.7820], // Tagore Hostel
+        [23.8330, 78.7815],
+        [23.8305, 78.7812], // Health Centre
+        [23.8290, 78.7790]
+      ];
+
+      let currentIndex = 0;
+      let stepProgress = 0;
+      const steps = 12;
+
+      if (simulationInterval) clearInterval(simulationInterval);
+
+      simulationInterval = setInterval(() => {
+        const startPoint = simulationWaypoints[currentIndex];
+        const nextIndex = (currentIndex + 1) % simulationWaypoints.length;
+        const endPoint = simulationWaypoints[nextIndex];
+
+        stepProgress++;
+        const factor = stepProgress / steps;
+
+        userLocation.lat = startPoint[0] + (endPoint[0] - startPoint[0]) * factor;
+        userLocation.lng = startPoint[1] + (endPoint[1] - startPoint[1]) * factor;
+        userLocation.accuracy = Math.floor(Math.random() * 4) + 4; // 4-7m
+
+        updateUserMarkerPosition();
+        updateTelemetryUI();
+        updateNearestLandmark();
+        renderLandmarkDirectory();
+
+        if (stepProgress >= steps) {
+          stepProgress = 0;
+          currentIndex = nextIndex;
+        }
+      }, 1400);
+
+      updateUserMarkerPosition();
+      updateTelemetryUI();
+      updateNearestLandmark();
+    }
+
+    // 6. Distance & Geometry Calculations (Haversine Formula)
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371e3; // Earth radius in meters
+      const phi1 = (lat1 * Math.PI) / 180;
+      const phi2 = (lat2 * Math.PI) / 180;
+      const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+      const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+
+      const a =
+        Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+        Math.cos(phi1) * Math.cos(phi2) *
+        Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return Math.round(R * c); // Distance in meters
+    }
+
+    function formatDistance(meters) {
+      if (meters >= 1000) {
+        return (meters / 1000).toFixed(2) + " km";
+      }
+      return meters + " m";
+    }
+
+    // Update Nearest Landmark indicator in bottom dock
+    function updateNearestLandmark() {
+      let minDistance = Infinity;
+      let nearest = null;
+
+      CAMPUS_LANDMARKS.forEach(landmark => {
+        const dist = calculateDistance(userLocation.lat, userLocation.lng, landmark.coords[0], landmark.coords[1]);
+        if (dist < minDistance) {
+          minDistance = dist;
+          nearest = landmark;
+        }
+      });
+
+      const label = document.getElementById('nearestLandmarkLabel');
+      if (label && nearest) {
+        label.innerHTML = `<span>📍</span> Nearest: <strong>${nearest.name.split('(')[0].trim()}</strong> (~${formatDistance(minDistance)})`;
+      }
+    }
+
+    // 7. Navigation Routing: Draw Line from User to Landmark
+    function drawRouteTo(targetCoords, landmarkName) {
+      if (currentRouteLine) {
+        map.removeLayer(currentRouteLine);
+      }
+
+      const userLatLng = [userLocation.lat, userLocation.lng];
+
+      // Draw custom glowing route polyline
+      currentRouteLine = L.polyline([userLatLng, targetCoords], {
+        color: '#38bdf8',
+        weight: 5,
+        opacity: 0.9,
+        dashArray: '8, 12',
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(map);
+
+      currentRouteLine.targetCoords = targetCoords;
+
+      // Fit map bounds to view both points
+      const bounds = L.latLngBounds([userLatLng, targetCoords]);
+      map.fitBounds(bounds, { padding: [80, 80] });
+
+      const dist = calculateDistance(userLatLng[0], userLatLng[1], targetCoords[0], targetCoords[1]);
+      const walkTimeMinutes = Math.max(1, Math.round(dist / 75)); // ~4.5 km/h walking speed
+
+      // Show Clear Route button
+      const clearBtn = document.getElementById('clearRouteBtn');
+      if (clearBtn) clearBtn.style.display = 'inline-flex';
+
+      closeAllDrawers();
+      showToast(`Walking route to ${landmarkName}: ${formatDistance(dist)} (~${walkTimeMinutes} min)`, "🚶");
+    }
+
+    function clearCurrentRoute() {
+      if (currentRouteLine) {
+        map.removeLayer(currentRouteLine);
+        currentRouteLine = null;
+      }
+      const clearBtn = document.getElementById('clearRouteBtn');
+      if (clearBtn) clearBtn.style.display = 'none';
+      showToast("Route cleared", "✖");
+    }
+
+    // 8. One-Tap Emergency SOS Dispatch System
+    function triggerEmergencySOS() {
+      // Haptic feedback if supported
+      if (navigator.vibrate) {
+        navigator.vibrate([200, 100, 200, 100, 400]);
+      }
+
+      const lat = userLocation.lat.toFixed(5);
+      const lng = userLocation.lng.toFixed(5);
+      const accuracy = userLocation.accuracy;
+      const mapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
+
+      // Emergency text message prefilled
+      const emergencyMessage = `🚨 EMERGENCY ALERT at DHSGSU Campus! My Live GPS Location: ${mapsUrl} (Dr. Harisingh Gour Vishwavidyalaya, Patharia Hills, Sagar). Accuracy: ±${accuracy}m. Immediate assistance requested!`;
+
+      // Update SOS Modal UI
+      document.getElementById('sosCoordsValue').textContent = `Latitude: ${lat}°, Longitude: ${lng}° (±${accuracy}m)`;
+      document.getElementById('sosMapsUrl').textContent = mapsUrl;
+
+      // SMS Link pre-fill
+      const smsLink = `sms:?body=${encodeURIComponent(emergencyMessage)}`;
+      document.getElementById('sosSmsAnchor').href = smsLink;
+
+      // WhatsApp link
+      const waLink = `https://api.whatsapp.com/send?text=${encodeURIComponent(emergencyMessage)}`;
+      document.getElementById('sosWhatsAppAnchor').href = waLink;
+
+      // Open Modal with 3-second rapid broadcast countdown
+      openDrawer('sosModal');
+      let countdown = 3;
+      const countEl = document.getElementById('sosCountdownNumber');
+      countEl.textContent = countdown;
+
+      if (sosCountdownTimer) clearInterval(sosCountdownTimer);
+
+      sosCountdownTimer = setInterval(() => {
+        countdown--;
+        if (countdown > 0) {
+          countEl.textContent = countdown;
+        } else {
+          clearInterval(sosCountdownTimer);
+          sosCountdownTimer = null;
+          countEl.textContent = "⚡";
+          // Automatically trigger SMS client on countdown completion
+          window.location.href = smsLink;
+        }
+      }, 1000);
+    }
+
+    function cancelEmergencySOS() {
+      if (sosCountdownTimer) {
+        clearInterval(sosCountdownTimer);
+        sosCountdownTimer = null;
+      }
+      closeAllDrawers();
+      showToast("Emergency SOS broadcast cancelled", "🛡️");
+    }
+
+    function copySosCoordinates() {
+      const lat = userLocation.lat.toFixed(5);
+      const lng = userLocation.lng.toFixed(5);
+      const mapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
+      const textToCopy = `🚨 DHSGSU Emergency Location: ${mapsUrl} (Lat: ${lat}, Lng: ${lng}, Acc: ±${userLocation.accuracy}m)`;
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          showToast("Live GPS coordinates copied to clipboard!", "📋");
+        }).catch(() => {
+          fallbackCopyText(textToCopy);
+        });
+      } else {
+        fallbackCopyText(textToCopy);
+      }
+    }
+
+    function fallbackCopyText(text) {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        showToast("Live GPS coordinates copied!", "📋");
+      } catch (err) {
+        showToast("Could not copy text automatically", "⚠️");
+      }
+      document.body.removeChild(textArea);
+    }
+
+    // 9. Audible Emergency Siren (Web Audio API - 100% Offline Synthesizer)
+    function toggleSiren() {
+      if (isSirenActive) {
+        stopSiren();
+      } else {
+        startSiren();
+      }
+    }
+
+    function startSiren() {
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) {
+          showToast("Web Audio not supported", "⚠️");
+          return;
+        }
+
+        audioContext = new AudioContextClass();
+        sirenOscillator = audioContext.createOscillator();
+        sirenGain = audioContext.createGain();
+
+        sirenOscillator.type = 'sawtooth';
+        sirenOscillator.frequency.setValueAtTime(750, audioContext.currentTime);
+
+        // Modulate siren frequency between 700Hz and 1300Hz
+        const now = audioContext.currentTime;
+        for (let i = 0; i < 30; i++) {
+          sirenOscillator.frequency.linearRampToValueAtTime(1300, now + i * 0.8 + 0.4);
+          sirenOscillator.frequency.linearRampToValueAtTime(700, now + i * 0.8 + 0.8);
+        }
+
+        sirenGain.gain.setValueAtTime(0.7, audioContext.currentTime);
+        sirenOscillator.connect(sirenGain);
+        sirenGain.connect(audioContext.destination);
+
+        sirenOscillator.start();
+        isSirenActive = true;
+        document.getElementById('sirenBtn').classList.add('active-danger');
+        showToast("🔊 EMERGENCY SIREN ACTIVE! Tap to mute", "🚨");
+      } catch (err) {
+        console.error("Audio error:", err);
+      }
+    }
+
+    function stopSiren() {
+      if (sirenOscillator) {
+        try {
+          sirenOscillator.stop();
+          sirenOscillator.disconnect();
+        } catch (e) {}
+      }
+      if (audioContext) {
+        try {
+          audioContext.close();
+        } catch (e) {}
+      }
+      isSirenActive = false;
+      document.getElementById('sirenBtn').classList.remove('active-danger');
+      showToast("Siren alarm stopped", "🔇");
+    }
+
+    // 10. Share Live Location System (Web Share API + WhatsApp + SMS + Telegram + Copy)
+    function shareCurrentLocation() {
+      const lat = userLocation.lat.toFixed(5);
+      const lng = userLocation.lng.toFixed(5);
+      const acc = userLocation.accuracy;
+      const mapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
+      const shareTitle = "DHSGSU Campus Live Location";
+      const shareText = `📍 My Live Location at DHSGSU Campus, Sagar (M.P.):\n${mapsUrl}\nCoordinates: ${lat}°, ${lng}° (Accuracy: ±${acc}m)\nDr. Harisingh Gour Vishwavidyalaya (Patharia Hills)`;
+
+      // Update Share Drawer UI
+      const coordsPreview = document.getElementById('shareCoordsPreview');
+      if (coordsPreview) {
+        coordsPreview.textContent = `${lat}° N, ${lng}° E (Accuracy: ±${acc}m)`;
+      }
+
+      const waBtn = document.getElementById('shareWhatsAppBtn');
+      if (waBtn) {
+        waBtn.href = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+      }
+
+      const smsBtn = document.getElementById('shareSmsBtn');
+      if (smsBtn) {
+        smsBtn.href = `sms:?body=${encodeURIComponent(shareText)}`;
+      }
+
+      const tgBtn = document.getElementById('shareTelegramBtn');
+      if (tgBtn) {
+        tgBtn.href = `https://t.me/share/url?url=${encodeURIComponent(mapsUrl)}&text=${encodeURIComponent(shareText)}`;
+      }
+
+      // Try native Web Share API first on mobile devices
+      if (navigator.share) {
+        navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: mapsUrl
+        }).then(() => {
+          showToast("Live location shared!", "📍");
+        }).catch((err) => {
+          if (err.name !== 'AbortError') {
+            openDrawer('shareDrawer');
+          }
+        });
+      } else {
+        openDrawer('shareDrawer');
+      }
+    }
+
+    function copyShareLocation() {
+      const lat = userLocation.lat.toFixed(5);
+      const lng = userLocation.lng.toFixed(5);
+      const acc = userLocation.accuracy;
+      const mapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
+      const textToCopy = `📍 My DHSGSU Campus Location: ${mapsUrl}\nCoordinates: ${lat}°, ${lng}° (±${acc}m)\nDr. Harisingh Gour Vishwavidyalaya, Patharia Hills, Sagar (M.P.)`;
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(textToCopy).then(() => {
+          showToast("Live location link copied to clipboard!", "📋");
+        }).catch(() => {
+          fallbackCopyText(textToCopy);
+        });
+      } else {
+        fallbackCopyText(textToCopy);
+      }
+    }
+
+    // 11. Landmark Directory Drawer & Filter
+    function renderLandmarkDirectory(filterCategory = 'all', searchTerm = '') {
+      const container = document.getElementById('landmarkListContent');
+      if (!container) return;
+
+      container.innerHTML = '';
+
+      const filtered = CAMPUS_LANDMARKS.filter(item => {
+        const matchesCategory = filterCategory === 'all' || item.category === filterCategory;
+        const matchesSearch = !searchTerm ||
+          item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item.description.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesCategory && matchesSearch;
+      });
+
+      // Sort by distance from current user location
+      filtered.sort((a, b) => {
+        const distA = calculateDistance(userLocation.lat, userLocation.lng, a.coords[0], a.coords[1]);
+        const distB = calculateDistance(userLocation.lat, userLocation.lng, b.coords[0], b.coords[1]);
+        return distA - distB;
+      });
+
+      filtered.forEach(landmark => {
+        const dist = calculateDistance(userLocation.lat, userLocation.lng, landmark.coords[0], landmark.coords[1]);
+        const card = document.createElement('div');
+        card.className = 'landmark-item-card';
+        card.onclick = () => {
+          map.flyTo(landmark.coords, 17);
+          closeAllDrawers();
+          // Find corresponding marker and open popup
+          const markerObj = landmarkMarkers.find(m => m.id === landmark.id);
+          if (markerObj) markerObj.marker.openPopup();
+        };
+
+        card.innerHTML = `
+          <div class="landmark-item-info">
+            <div class="landmark-item-icon" style="background: ${landmark.color}25; color: ${landmark.color}; border: 1px solid ${landmark.color}55;">
+              ${landmark.icon}
+            </div>
+            <div>
+              <div class="landmark-item-title">${landmark.name}</div>
+              <div class="landmark-item-sub">${landmark.categoryName}</div>
+            </div>
+          </div>
+          <div class="landmark-item-dist">
+            <span class="dist-tag">${formatDistance(dist)}</span>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+    }
+
+    function filterLandmarks(category, buttonEl) {
+      activeFilter = category;
+
+      // Update chip styling
+      document.querySelectorAll('.filter-chip').forEach(el => el.classList.remove('active'));
+      if (buttonEl) buttonEl.classList.add('active');
+
+      // Update map markers visibility
+      landmarkMarkers.forEach(item => {
+        if (category === 'all' || item.category === category) {
+          if (!map.hasLayer(item.marker)) map.addLayer(item.marker);
+        } else {
+          if (map.hasLayer(item.marker)) map.removeLayer(item.marker);
+        }
+      });
+
+      renderLandmarkDirectory(category);
+    }
+
+    function handleLandmarkSearch(val) {
+      renderLandmarkDirectory(activeFilter, val);
+    }
+
+    // 12. Modal & Drawer Management
+    function openDrawer(id) {
+      closeAllDrawers();
+      const modal = document.getElementById(id);
+      const overlay = document.getElementById(id + 'Overlay') || document.getElementById('landmarksDrawerOverlay');
+      if (modal) modal.classList.add('active');
+      if (overlay) overlay.classList.add('active');
+    }
+
+    function closeAllDrawers() {
+      document.querySelectorAll('.drawer-modal').forEach(m => m.classList.remove('active'));
+      document.querySelectorAll('.drawer-overlay').forEach(o => o.classList.remove('active'));
+      if (sosCountdownTimer) {
+        clearInterval(sosCountdownTimer);
+        sosCountdownTimer = null;
+      }
+    }
+
+    function showCampusOverviewModal() {
+      openDrawer('landmarksDrawer');
+    }
+
+    // 13. Toast Notification Helper
+    let toastTimeout = null;
+    function showToast(message, icon = "ℹ️") {
+      const toast = document.getElementById('toast');
+      const msgEl = document.getElementById('toastMessage');
+      const iconEl = document.getElementById('toastIcon');
+
+      if (toast && msgEl) {
+        msgEl.textContent = message;
+        if (iconEl) iconEl.textContent = icon;
+        toast.classList.add('show');
+
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => {
+          toast.classList.remove('show');
+        }, 3200);
+      }
+    }
+
+    // 14. Progressive Web App (PWA) Install Handling & Offline Support
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPwaPrompt = e;
+      const installBtn = document.getElementById('pwaInstallBtn');
+      if (installBtn) installBtn.style.display = 'flex';
+    });
+
+    window.addEventListener('appinstalled', () => {
+      deferredPwaPrompt = null;
+      const installBtn = document.getElementById('pwaInstallBtn');
+      if (installBtn) installBtn.style.display = 'none';
+      showToast("DHSGSU Safe successfully installed on your device!", "🎉");
+    });
+
+    function triggerPWAInstall() {
+      if (deferredPwaPrompt) {
+        deferredPwaPrompt.prompt();
+        deferredPwaPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('User accepted PWA installation');
+          }
+          deferredPwaPrompt = null;
+          document.getElementById('pwaInstallBtn').style.display = 'none';
+        });
+      } else {
+        openDrawer('pwaModal');
+      }
+    }
+
+    // Register Service Worker for offline capability
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then((registration) => {
+          console.log('PWA ServiceWorker registered with scope:', registration.scope);
+        }).catch((error) => {
+          console.log('PWA ServiceWorker registration notice:', error);
+        });
+      });
+    }
+
+    // Online / Offline Status Monitoring
+    window.addEventListener('offline', () => {
+      const banner = document.getElementById('offlineBanner');
+      if (banner) banner.style.display = 'block';
+      showToast("Device is offline. Using cached campus map and GPS.", "📡");
+    });
+
+    window.addEventListener('online', () => {
+      const banner = document.getElementById('offlineBanner');
+      if (banner) banner.style.display = 'none';
+      showToast("Online connection restored", "🌐");
+    });
+
+    // Initialize application on DOM ready
+    window.addEventListener('DOMContentLoaded', () => {
+      initMap();
+    });
+  </script>
+</body>
+</html>

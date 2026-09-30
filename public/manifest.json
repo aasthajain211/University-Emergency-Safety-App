@@ -1,0 +1,38 @@
+{
+  "id": "/",
+  "name": "DHSGSU Live Campus Safety & Navigation System",
+  "short_name": "DHSGSU Safe",
+  "description": "Real-time live campus safety, GPS tracking, interactive Leaflet navigation, one-tap emergency SOS broadcast, and security quick-dials for Dr. Harisingh Gour Vishwavidyalaya, Sagar.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "categories": ["navigation", "safety", "utilities"],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

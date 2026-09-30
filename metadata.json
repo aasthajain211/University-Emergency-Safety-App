@@ -1,0 +1,10 @@
+{
+  "name": "DHSGSU Live Campus Safety & Navigation System",
+  "description": "Real-time live campus safety, GPS tracking, interactive Leaflet navigation, one-tap emergency SOS broadcast, and security quick-dials for Dr. Harisingh Gour Vishwavidyalaya (DHSGSU), Sagar.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
